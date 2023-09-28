@@ -1,0 +1,35 @@
+name: tf-apply
+
+on:
+    push:
+        branches:
+            - "main"
+
+jobs:
+    deploy:
+        name: deploy
+        runs-on: hashicorp/terraform:latest
+
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+
+            - name: initialize ssh
+              run: |
+                  echo '${{ secrets.TURING_SSH_PRIVATE_KEY }}' > ssh-priv-key
+
+            - name: init terraform
+              run: |
+                  cd terraform
+                  terraform init -input=false -backend-config='conn_str=postgres://seer:${{ secrets.TF_BACKEND_PASS }}@${{ secrets.TURING_SSH_HOST }}:${{ secrets.TURING_SSH_PORT }}/terraform_backend?sslmode=disable'
+
+            - name: apply terraform
+              run: |
+                  terraform apply \
+                    -input=false \
+                    -auto-approve \
+                    -var host="${{ secrets.TURING_SSH_HOST }}" \
+                    -var port="${{ secrets.TURING_SSH_PORT }}" \
+                    -var tf_backend_port="${{ secrets.TF_BACKEND_PORT }}" \
+                    -var tf_backend_password="${{ secrets.TF_BACKEND_PASS }}" \
+                    -var private_ssh_key_location="ssh-priv-key"
