@@ -11,5 +11,10 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
+
+    infisical = {
+      version = "~> 0.3"
+      source  = "infisical/infisical"
+    }
   }
 }

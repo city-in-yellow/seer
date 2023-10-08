@@ -1,38 +1,66 @@
+##########
 # Provider
+##########
 provider "docker" {
   host     = "ssh://${local.user}@${var.host}:${var.port}"
   ssh_opts = ["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null"]
+
+  registry_auth {
+    address       = "registry.iridium-server.com"
+    auth_disabled = true
+  }
 }
 
+##########
+# Networks
+##########
+resource "docker_network" "terraform" {
+  name   = "terraform"
+  driver = "bridge"
+}
+
+resource "docker_network" "terraform" {
+  name   = "host"
+  driver = "host"
+}
+
+########
 # Images
-data "docker_registry_image" "postgres" {
-  name = "postgres:15"
+########
+module "postgres" {
+  source     = "./docker-image"
+  docker_tag = "postgres:15"
 }
 
-resource "docker_image" "postgres" {
-  name          = data.docker_registry_image.postgres.name
-  pull_triggers = [data.docker_registry_image.postgres.sha256_digest]
+###########
+# Portainer
+###########
+module "portainer" {
+  source     = "./docker-image"
+  docker_tag = "portainer/portainer-ce:latest"
 }
 
-# Containers
-resource "docker_container" "terraform_backend" {
-  image   = docker_image.postgres.image_id
-  name    = "terraform_backend"
+resource "docker_container" "portainer" {
+  image   = module.portainer.id
+  name    = "portainer"
   restart = "unless-stopped"
 
-  env = [
-    "POSTGRES_USER=seer",
-    "POSTGRES_DB=terraform_backend",
-    "POSTGRES_PASSWORD=${var.tf_backend_password}"
-  ]
+  networks_advanced {
+    name = docker_network.terraform.id
+  }
 
   ports {
-    internal = 5432
-    external = var.tf_backend_port
+    internal = 9000
+    external = 20100
   }
 
   volumes {
-    container_path = "/var/lib/postgresql/data"
-    host_path      = "${local.storage_path}/terraform_backend"
+    container_path = "/var/run/docker.sock"
+    host_path      = "/var/run/docker.sock"
+  }
+
+  volumes {
+    container_path = "/data"
+    host_path      = "${local.storage_path}/portainer"
   }
 }

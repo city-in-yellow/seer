@@ -19,3 +19,7 @@ variable "tf_backend_password" {
 variable "tf_backend_port" {
   type = number
 }
+
+variable "infisical_service_token" {
+  type = string
+}
